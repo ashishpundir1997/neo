@@ -1,0 +1,20 @@
+
+postgres:
+  host: ${oc.env:POSTGRES_HOST}
+  port: ${oc.env:POSTGRES_PORT}
+  user: ${oc.env:POSTGRES_USER}
+  password: ${oc.env:POSTGRES_PASSWORD}
+  database: ${oc.env:POSTGRES_DATABASE}
+
+
+jwt_auth:
+  super_secret_key: ${oc.env:JWT_SUPER_SECRET}
+  refresh_secret_key: ${oc.env:JWT_REFRESH_SECRET}
+
+
+
+redis:
+  host: ${oc.env:REDIS_HOST, "localhost"}
+  port: ${oc.env:REDIS_PORT, "6379"}
+  password: ${oc.env:REDIS_PASSWORD, ""}
+

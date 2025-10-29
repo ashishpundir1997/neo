@@ -10,7 +10,7 @@ from google.oauth2 import id_token
 from app.user.service.user_service import UserService
 from pkg.auth_token_client.client import TokenClient, TokenPayload
 from pkg.log.logger import Logger
-from pkg.redis.redis_client import RedisClient  # Assuming this is still needed for OTPs
+from pkg.redis.client import RedisClient  # Assuming this is still needed for OTPs
 
 # Redis keys for OTP storage
 REDIS_OTP_STRING = "otp_"

@@ -1,12 +1,25 @@
+# ...existing code...
 from fastapi import FastAPI
+from omegaconf import OmegaConf
+from cmd_server.server.container import create_container
 from app.auth.api.routes import auth_router
-
-
 app = FastAPI()
 
-# ✅ make sure to include your auth routes
+# create & attach container before handling requests
+cfg = OmegaConf.load("conf/config.yaml")  # adjust path if needed
+container = create_container(cfg)
+app.state.container = container
+
+
 app.include_router(auth_router)
 
-@app.get("/")
-def home():
-    return {"msg": "FastAPI is running 🚀"}
+# optional startup init
+@app.on_event("startup")
+def on_startup():
+    # call initializers if required, e.g. run DB migrations/initializers
+    try:
+        app.state.container.db_initializer()  # or .db_initializer().run() depending on your provider API
+    except Exception:
+        pass
+
+# ...existing code to include routers, middleware, etc...
