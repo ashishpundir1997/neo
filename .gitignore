@@ -1,0 +1,22 @@
+# Environment variables
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE files
+.vscode/
+.idea/
+
+# Secrets or config
+*.secret
+*.key
+config_local.py
+
+# SQLite or local DB
+*.db
+
+# Docker
+*.log

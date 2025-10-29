@@ -1,0 +1,26 @@
+from datetime import datetime
+from sqlalchemy import Column, String, Boolean, DateTime
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.ext.declarative import declarative_base
+import uuid
+
+Base = declarative_base()
+
+def generate_uuid():
+    return str(uuid.uuid4())
+
+class User(Base):
+    __tablename__ = "users"
+
+    uid = Column(String, primary_key=True, default=generate_uuid)
+    email = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=True)
+    auth_provider = Column(String, default="email")  # 'email' or 'google'
+    auth_provider_detail = Column(JSONB, nullable=True)
+    name = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    image_url = Column(String, nullable=True)
+    is_email_verified = Column(Boolean, default=False)
+    is_profile_created = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
