@@ -11,8 +11,23 @@ class Logger:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
 
-    def info(self, msg: str):
-        self.logger.info(msg)
+    def info(self, msg: str, **kwargs):
+        self.logger.info(msg, **kwargs)
 
-    def error(self, msg: str):
-        self.logger.error(msg)
+    def error(self, msg: str, **kwargs):
+        self.logger.error(msg, **kwargs)
+
+    def debug(self, msg: str, **kwargs):
+        self.logger.debug(msg, **kwargs)
+
+    def warning(self, msg: str, **kwargs):
+        self.logger.warning(msg, **kwargs)
+
+    def critical(self, msg: str, **kwargs):
+        self.logger.critical(msg, **kwargs)
+
+    def exception(self, msg: str, **kwargs):
+        self.logger.exception(msg, **kwargs)
+
+    def fatal(self, msg: str, **kwargs):
+        self.logger.fatal(msg, **kwargs)

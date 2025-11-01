@@ -8,6 +8,7 @@ from app.auth.api.dto import (
     PasswordResetDTO,
     PasswordResetRequestDTO,
     UserRegisterDTO,
+    EmailVerificationDTO,
 )
 from app.auth.service.auth_service import AuthService
 from pkg.log.logger import Logger
@@ -20,22 +21,30 @@ class AuthHandler:
 
     async def register_user(self, user_data: UserRegisterDTO) -> dict[str, Any]:
         try:
-            tokens = await self.auth_service.register_with_email(
+            result = await self.auth_service.register_with_email(
                 user_data.email,
                 user_data.password,
                 user_data.name,
             )
-            return {
-                "message": "Registration successful! Start your journey.",
-                "access_token": tokens["access_token"],
-                "refresh_token": tokens["refresh_token"],
-                "token_type": "bearer",
-            }
+            return result
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             self.logger.error(f"Error during registration: {e!s}")
             raise HTTPException(status_code=500, detail="Registration failed")
+    
+    async def verify_email(self, verification_data: EmailVerificationDTO) -> dict[str, Any]:
+        try:
+            result = await self.auth_service.verify_email(
+                verification_data.email,
+                verification_data.otp,
+            )
+            return result
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error during email verification: {e!s}")
+            raise HTTPException(status_code=500, detail="Email verification failed")
 
     async def login(self, login_data: LoginDTO) -> dict[str, Any]:
         try:
@@ -125,7 +134,7 @@ class AuthHandler:
         try:
             await self.auth_service.reset_password(
                 reset_data.email, 
-                reset_data.token, 
+                reset_data.otp, 
                 reset_data.new_password
             )
             return {"message": "Password reset successful"}

@@ -42,7 +42,27 @@ class EmailClient:
             self._server = smtplib.SMTP(self.config.smtp_server, self.config.smtp_port)
             if self.config.use_tls:
                 self._server.starttls()
+            
+            # Check if credentials are provided
+            if not self.config.username or not self.config.password:
+                raise EmailError(
+                    "SMTP credentials not configured. Please set SMTP_USERNAME and SMTP_PASSWORD environment variables."
+                )
+            
             self._server.login(self.config.username, self.config.password)
+        except smtplib.SMTPAuthenticationError as e:
+            self._server = None
+            error_msg = str(e)
+            if "BadCredentials" in error_msg or "535" in error_msg:
+                raise EmailError(
+                    f"Gmail authentication failed. Please ensure:\n"
+                    f"1. You're using a Gmail App Password (not your regular password)\n"
+                    f"2. 2-Step Verification is enabled on your Google account\n"
+                    f"3. You've generated an App Password at: https://myaccount.google.com/apppasswords\n"
+                    f"4. The App Password is correctly set in the SMTP_PASSWORD environment variable\n"
+                    f"Original error: {error_msg}"
+                )
+            raise EmailError(f"Failed to authenticate with SMTP server: {error_msg}")
         except Exception as e:
             self._server = None
             raise EmailError(f"Failed to connect to SMTP server: {e!s}")

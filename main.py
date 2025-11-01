@@ -18,11 +18,16 @@ app.include_router(auth_router)
 
 # optional startup init
 @app.on_event("startup")
-def on_startup():
+async def on_startup():
     # call initializers if required, e.g. run DB migrations/initializers
     try:
-        app.state.container.db_initializer()  # or .db_initializer().run() depending on your provider API
-    except Exception:
-        pass
+        db_initializer = app.state.container.db_initializer()
+        await db_initializer.initialize_tables()
+    except Exception as e:
+        import traceback
+        print(f"Error initializing database tables: {e}")
+        traceback.print_exc()
+        # Re-raise if you want startup to fail on DB init errors
+        # raise
 
 # ...existing code to include routers, middleware, etc...

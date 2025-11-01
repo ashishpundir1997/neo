@@ -7,7 +7,7 @@ import jwt
 @dataclass
 class TokenPayload:
     user_id: str
-    joined_org: bool
+    # joined_org: bool
     role: str
     org_id: str | None = None
     email: str | None = None
@@ -22,7 +22,7 @@ class TokenClient:
         """Create access and refresh tokens"""
         token_data = {
             "user_id": str(payload.user_id),
-            "joined_org": payload.joined_org,
+            # "joined_org": payload.joined_org,
             "role": payload.role,
             "org_id": payload.org_id,
             "email": payload.email,

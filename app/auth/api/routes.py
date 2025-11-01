@@ -9,6 +9,7 @@ from app.auth.api.dto import (
     PasswordResetRequestDTO,
     RefreshTokenDTO,
     UserRegisterDTO,
+    EmailVerificationDTO,
 )
 from app.auth.api.dependencies import get_auth_handler
 from app.auth.api.handlers import AuthHandler
@@ -78,3 +79,11 @@ async def request_password_reset(
 async def reset_password(reset_data: PasswordResetDTO, auth_handler: AuthHandler = Depends(get_auth_handler)):
     """Reset password with token"""
     return await auth_handler.reset_password(reset_data)
+
+
+@auth_router.post("/verify-email")
+async def verify_email(
+    verification_data: EmailVerificationDTO, auth_handler: AuthHandler = Depends(get_auth_handler)
+):
+    """Verify user email with OTP"""
+    return await auth_handler.verify_email(verification_data)

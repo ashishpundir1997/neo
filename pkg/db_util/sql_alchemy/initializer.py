@@ -101,9 +101,17 @@ class DatabaseInitializer:
         try:
             # Import here to avoid circular imports but ensure models are registered
             import app.code_execution.repository.sql_schema
-            self.logger.info("Imported SQL schema models.")
+            self.logger.info("Imported code execution SQL schema models.")
+        except ImportError:
+            # Code execution module is optional, no warning needed
+            self.logger.debug("Code execution models not found (optional module).")
+        
+        try:
+            # Import user models to register them with Base
+            import app.user.repository.schema.user
+            self.logger.info("Imported user SQL schema models.")
         except ImportError as e:
-            self.logger.warning(f"Failed to import some models: {e}")
+            self.logger.warning(f"Failed to import user models: {e}")
 
         if self.db_engine is None:
             await self.initialize()
@@ -114,6 +122,9 @@ class DatabaseInitializer:
                 self.logger.info(f"Running metadata.create_all (checkfirst={check_first})...")
                 await conn.run_sync(Base.metadata.create_all, checkfirst=check_first)
                 self.logger.info("Tables initialized successfully (or already exist).")
+            
+            # Add missing columns to existing tables
+            await self._add_missing_columns()
         except SQLAlchemyError as e:
             self.logger.error(f"Error during table initialization: {e}", exc_info=True)
             # Depending on the error, you might want to raise it or handle differently
@@ -121,3 +132,34 @@ class DatabaseInitializer:
         except Exception as e:
             self.logger.error(f"Unexpected error occurred during table initialization: {e}", exc_info=True)
             raise
+
+    async def _add_missing_columns(self) -> None:
+        """Add missing columns to existing tables if they don't exist."""
+        if self.db_engine is None:
+            await self.initialize()
+        
+        try:
+            async with self.db_engine.begin() as conn:
+                # Check if users table exists and add profile_colour if missing
+                result = await conn.execute(text("""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_name = 'users' AND column_name = 'profile_colour'
+                """))
+                column_exists = result.fetchone()
+                
+                if not column_exists:
+                    self.logger.info("Adding missing column 'profile_colour' to users table...")
+                    try:
+                        await conn.execute(text("""
+                            ALTER TABLE users 
+                            ADD COLUMN profile_colour VARCHAR DEFAULT ''
+                        """))
+                        self.logger.info("Successfully added 'profile_colour' column to users table.")
+                    except Exception as e:
+                        # Column might have been added by another process
+                        self.logger.debug(f"Column might already exist or error occurred: {e}")
+        except SQLAlchemyError as e:
+            self.logger.warning(f"Could not add missing columns: {e}. This is non-critical.")
+        except Exception as e:
+            self.logger.warning(f"Unexpected error adding missing columns: {e}. This is non-critical.")

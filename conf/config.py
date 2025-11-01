@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Optional
+from pkg.smtp_client.client import EmailConfig
 
 
 
@@ -26,6 +27,11 @@ class PostgresConfig:
     database: str
     user: str
     password: str
+    pool_size: int = 5          # default pool size
+    max_overflow: int = 10      # default overflow connections
+    pool_timeout: int = 30      # seconds
+    pool_recycle: int = 1800    # seconds (30 mins)
+
 
 
 
@@ -38,5 +44,7 @@ class AppConfig:
     redis: RedisConfig
    
     postgres: PostgresConfig
+    
+    smtp: EmailConfig
 
 
