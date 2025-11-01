@@ -3,6 +3,9 @@ from fastapi import FastAPI
 from omegaconf import OmegaConf
 from cmd_server.server.container import create_container
 from app.auth.api.routes import auth_router
+from dotenv import load_dotenv
+load_dotenv()  # This loads environment variables from .env
+
 app = FastAPI()
 
 # create & attach container before handling requests

@@ -7,6 +7,7 @@ from app.user.entities.entity import User as UserEntity
 from app.user.repository.schema.user import User
 from app.user.service.user_service import IUserRepository
 from pkg.log.logger import Logger
+from sqlalchemy.future import select
 
 class UserRepository(IUserRepository):
     def __init__(self, db_session: Session, logger: Logger):

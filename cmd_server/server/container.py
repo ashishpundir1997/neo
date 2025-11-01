@@ -12,12 +12,18 @@ from conf.config import AppConfig
 from pkg.log.logger import Logger
 from pkg.redis.client import RedisClient
 from pkg.db_util.sql_alchemy.initializer import DatabaseInitializer
+from dotenv import load_dotenv
+import os
+
+# Load .env before any OmegaConf usage
+load_dotenv()
+
 
 class Container(containers.DeclarativeContainer):
     config = providers.Configuration()
 
    
-    logger = providers.Singleton(Logger)
+    logger = providers.Singleton(Logger, name="projectneo")
 
 
     postgres_config = providers.Singleton(PostgresConfig,
@@ -26,10 +32,13 @@ class Container(containers.DeclarativeContainer):
                                           username=config.postgres.user,
                                           password=config.postgres.password,
                                           database=config.postgres.database)
+   
     postgres_conn = providers.Singleton(PostgresConnection, db_config=postgres_config, logger=logger)
+    postgres_session = providers.Singleton(postgres_conn().get_session)
+    
     db_initializer = providers.Singleton(
         DatabaseInitializer,
-        postgres_conn=postgres_conn,
+        postgres_session=postgres_session,
         logger=logger
     )
 
@@ -49,7 +58,7 @@ class Container(containers.DeclarativeContainer):
 
     user_repository = providers.Singleton(
         UserRepository,
-        db_conn=postgres_conn,
+        db_session=postgres_session,
         logger=logger,
     )
     
@@ -64,6 +73,7 @@ class Container(containers.DeclarativeContainer):
     auth_service = providers.Singleton(
         AuthService,
         user_service=user_service,
+        token_client=token_client,
         redis_client=redis_client,
         logger=logger,
     )

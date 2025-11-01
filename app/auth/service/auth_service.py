@@ -22,16 +22,16 @@ class AuthService:
         user_service: UserService,
         token_client: TokenClient,
         redis_client: RedisClient,
-        google_oauth_client_id: str,
-        apple_oauth_client_id: str,
+        # google_oauth_client_id: str, //for future use
+        # apple_oauth_client_id: str,  //for future use
         logger: Logger,
     ):
 
         self.token_client = token_client
         self.redis_client = redis_client
-        self.google_client_id = google_oauth_client_id
+        # self.google_client_id = google_oauth_client_id  //for future use
         self.user_service: UserService = user_service
-        self.apple_client_id = apple_oauth_client_id
+        # self.apple_client_id = apple_oauth_client_id  //for future use
         self.logger = logger
 
     def _generate_otp(self) -> str:
