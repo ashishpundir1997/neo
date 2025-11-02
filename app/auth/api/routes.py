@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Response, HTTPException,Depends
+from fastapi import APIRouter, Response, HTTPException,Depends, Request
 
 
 from app.auth.api.dto import (
@@ -87,3 +87,21 @@ async def verify_email(
 ):
     """Verify user email with OTP"""
     return await auth_handler.verify_email(verification_data)
+
+@auth_router.get("/google/callback")
+async def google_callback(request: Request, auth_handler: AuthHandler = Depends(get_auth_handler)):
+    code = request.query_params.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="No code received from Google")
+    
+    tokens = await auth_handler.handle_google_callback(code)
+    return tokens
+
+@auth_router.get("/google/callback")
+async def google_callback(request: Request, auth_handler: AuthHandler = Depends(get_auth_handler)):
+    code = request.query_params.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="No code received from Google")
+
+    tokens = await auth_handler.handle_google_callback(code)
+    return tokens

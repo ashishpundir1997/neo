@@ -67,8 +67,11 @@ class GoogleAuthDTO(BaseModel):
     """DTO for Google authentication"""
 
     user: GoogleUserDTO
-    account: GoogleAccountDTO
-    profile: GoogleProfileDTO
+    # account: GoogleAccountDTO
+    # profile: GoogleProfileDTO
+    access_token: str
+    id_token: str
+    
 
 class AppleAuthDTO(BaseModel):
     """DTO for Apple authentication"""

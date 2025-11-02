@@ -1,6 +1,6 @@
 from datetime import datetime
 from uuid import uuid4
-
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -13,7 +13,7 @@ class Entity(BaseModel):
 
 class User(Entity):
     email: str
-    password_hash: str
+    password_hash: Optional[str] = None 
     name: str = ""
     is_active: bool = True
     auth_provider: str = "email"

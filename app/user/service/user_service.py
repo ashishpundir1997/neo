@@ -21,6 +21,8 @@ class IUserRepository(ABC):
             auth_provider: str = "email",
             auth_provider_detail: dict = None,
             profile_colour="",
+            google_id: str | None = None,
+            image_url: str | None = None
     ) -> UserAggregate:
         pass
 
@@ -60,6 +62,8 @@ class UserService:
             is_email_verified: bool,
             auth_provider: str = "email",
             auth_provider_detail: dict = None,
+            google_id: str | None = None,
+            image_url: str | None = None
     ) -> UserAggregate:
         """Create a new user"""
         existing_user = await self.get_user_by_email(email)
@@ -73,7 +77,8 @@ class UserService:
             name=name,
             is_email_verified=is_email_verified,
             auth_provider_detail=auth_provider_detail,
-
+            google_id=google_id,
+            image_url=image_url
         )
 
         return user

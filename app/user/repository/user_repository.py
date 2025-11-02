@@ -23,6 +23,8 @@ class UserRepository(IUserRepository):
         auth_provider: str = "email",
         auth_provider_detail: dict = None,
         profile_colour: str = "",
+        google_id: str | None = None,
+        image_url: str | None = None
     ) -> UserAggregate:
         """Create a new user"""
         if auth_provider_detail is None:

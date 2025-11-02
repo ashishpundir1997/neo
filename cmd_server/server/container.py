@@ -124,6 +124,8 @@ class Container(containers.DeclarativeContainer):
     auth_handler = providers.Singleton(
         AuthHandler, auth_service=auth_service, logger=logger
     )
+    
+    
 
 
 

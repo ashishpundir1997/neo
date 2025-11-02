@@ -66,22 +66,21 @@ class AuthHandler:
     async def google_auth(self, google_auth_request: GoogleAuthDTO) -> dict[str, Any]:
         try:
             tokens = await self.auth_service.register_with_google(
-                google_auth_request.user.id,
-                google_auth_request.user.name,
-                google_auth_request.user.email,
-                google_auth_request.user.image,
-                google_auth_request.access_token,
-                google_auth_request.id_token
+            google_id=google_auth_request.user.id,
+            name=google_auth_request.user.name,
+            email=google_auth_request.user.email,
+            image_url=google_auth_request.user.image
             )
             return {
-                "message": "Google authentication successful",
-                "access_token": tokens["access_token"],
-                "refresh_token": tokens["refresh_token"],
-                "token_type": "bearer",
-            }
+            "message": tokens["message"],
+            "access_token": tokens["access_token"],
+            "refresh_token": tokens["refresh_token"],
+            "token_type": tokens["token_type"],
+        }
         except Exception as e:
             self.logger.error(f"Error during Google authentication: {e!s}")
-            raise HTTPException(status_code=500, detail="Google authentication failed")
+        raise HTTPException(status_code=500, detail="Google authentication failed")
+
 
     async def apple_auth(self, apple_auth_request: AppleAuthDTO) -> dict[str, Any]:
         try:
@@ -143,3 +142,19 @@ class AuthHandler:
         except Exception as e:
             self.logger.error(f"Error resetting password: {e!s}")
             raise HTTPException(status_code=500, detail="Password reset failed")
+        
+        
+        
+    # inside AuthHandler
+    async def handle_google_callback(self, code: str) -> dict[str, str]:
+        try:
+            tokens = await self.auth_service.handle_google_callback(code)
+            return {
+                "message": "Google authentication successful",
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "token_type": "bearer",
+            }
+        except Exception as e:
+            self.logger.error(f"Error during Google callback: {e!s}")
+            raise HTTPException(status_code=500, detail="Google callback failed")

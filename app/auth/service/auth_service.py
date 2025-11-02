@@ -1,7 +1,7 @@
 import random
 import string
 from datetime import datetime, timedelta
-
+import os
 import bcrypt
 from fastapi import HTTPException
 from app.user.service.user_service import UserService
@@ -111,7 +111,8 @@ class AuthService:
             )
 
         otp = "".join(random.choices(string.digits, k=6))
-        self.redis_client.set_value(REDIS_PASSWORD_RESET_OTP + email, otp, expiry=600)
+        # 600 seconds = 10 minutes
+        self.redis_client.set_value(REDIS_PASSWORD_RESET_OTP + email, otp, expiry=600)  
 
         body = f"Your password reset code is: {otp}"
         await self.smtp_client.send_email(
@@ -142,3 +143,90 @@ class AuthService:
 
         self.redis_client.delete(REDIS_PASSWORD_RESET_OTP + email)
         self.logger.info(f"Password reset successful for user: {email}")
+        
+        
+    async def register_with_google(self, google_id: str, name: str, email: str, image_url: str) -> dict[str, str]:
+        """Register or Login user with Google"""
+        try:
+            existing_user = await self.user_service.get_user_by_email(email)
+
+            if existing_user:
+                # If user exists and registered with Google, log in
+                if existing_user.user.auth_provider == "google":
+                    tokens = self._create_tokens(user_id=existing_user.user.id, email=email)
+                    return {
+                        "message": "Login successful",
+                        "access_token": tokens["access_token"],
+                        "refresh_token": tokens["refresh_token"],
+                        "token_type": "bearer",
+                    }
+                else:
+                    raise HTTPException(status_code=400, detail="Email already registered with different provider. Please login.")
+
+            # Create user without password for Google auth
+            user_aggregate = await self.user_service.create_user(
+                email=email,
+                password_hash=None,  # No password for Google users
+                name=name,
+                is_email_verified=True,
+                auth_provider="google",
+                google_id=google_id,
+                image_url=image_url
+            )
+
+            tokens = self._create_tokens(user_id=user_aggregate.user.id, email=email)
+
+            return {
+                "message": "Registration successful",
+                "access_token": tokens["access_token"],
+                "refresh_token": tokens["refresh_token"],
+                "token_type": "bearer",
+            }
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error during registration: {e!s}")
+            raise HTTPException(status_code=500, detail="Registration failed")
+        
+        
+        
+        
+    async def handle_google_callback(self, code: str) -> dict[str, str]:
+        """Exchange code for token, get user info, register/login user"""
+        try:
+            # Step 1: Exchange code for access token
+            token_url = "https://oauth2.googleapis.com/token"
+            data = {
+                "code": code,
+                "client_id": os.getenv("GOOGLE_OAUTH_CLIENT_ID"),
+                "client_secret": os.getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+                "redirect_uri": GOOGLE_REDIRECT_URI,
+                "grant_type": "authorization_code",
+            }
+
+            async with httpx.AsyncClient() as client:
+                token_resp = await client.post(token_url, data=data)
+                token_resp.raise_for_status()
+                tokens_data = token_resp.json()
+
+            access_token = tokens_data["access_token"]
+
+            # Step 2: Get user info
+            userinfo_url = "https://www.googleapis.com/oauth2/v2/userinfo"
+            headers = {"Authorization": f"Bearer {access_token}"}
+            async with httpx.AsyncClient() as client:
+                user_resp = await client.get(userinfo_url, headers=headers)
+                user_resp.raise_for_status()
+                user_info = user_resp.json()
+
+            # Step 3: Register/Login user
+            return await self.register_with_google(
+                google_id=user_info["id"],
+                name=user_info.get("name", ""),
+                email=user_info["email"],
+                image_url=user_info.get("picture")
+            )
+
+        except httpx.HTTPError as e:
+            self.logger.error(f"Error fetching Google user info: {e!s}")
+            raise HTTPException(status_code=500, detail="Failed to fetch Google user info")
