@@ -12,6 +12,9 @@ from pkg.auth_token_client.client import TokenClient, TokenPayload  # For JWT
 
 # Redis keys for OTP storage
 REDIS_PASSWORD_RESET_OTP = "password_reset_otp_"
+# Redis keys for token blacklisting
+REDIS_BLACKLISTED_TOKEN = "blacklisted_token_"
+REDIS_USER_SESSION = "user_session_"
 
 class AuthService:
     def __init__(
@@ -143,7 +146,126 @@ class AuthService:
 
         self.redis_client.delete(REDIS_PASSWORD_RESET_OTP + email)
         self.logger.info(f"Password reset successful for user: {email}")
-        
+
+    async def refresh_token(self, refresh_token: str) -> dict[str, str]:
+        """Refresh access token using refresh token"""
+        try:
+            # Decode and verify refresh token
+            payload = self.token_client.decode_token(refresh_token, is_refresh=True)
+            
+            # Check if refresh token is blacklisted
+            if self.redis_client.get_value(REDIS_BLACKLISTED_TOKEN + refresh_token):
+                raise HTTPException(status_code=401, detail="Refresh token has been revoked")
+            
+            # Get user to ensure they still exist
+            user_aggregate = await self.user_service.get_user_by_id(payload["user_id"])
+            if not user_aggregate or not user_aggregate.user:
+                raise HTTPException(status_code=401, detail="User not found")
+            
+            # Create new tokens
+            tokens = self._create_tokens(
+                user_id=user_aggregate.user.id,
+                email=user_aggregate.user.email,
+                role=payload.get("role", "MEMBER")
+            )
+
+            # Revoke (blacklist) the old refresh token immediately (rotation)
+            try:
+                exp = payload.get("exp")
+                if exp:
+                    remaining_seconds = max(0, exp - int(datetime.utcnow().timestamp()))
+                    if remaining_seconds > 0:
+                        self.redis_client.set_value(
+                            REDIS_BLACKLISTED_TOKEN + refresh_token,
+                            "true",
+                            expiry=remaining_seconds,
+                        )
+            except Exception:
+                # Non-fatal if rotation blacklisting fails
+                pass
+            
+            self.logger.info(f"Token refreshed for user: {user_aggregate.user.email}")
+            return tokens
+            
+        except ValueError as e:
+            error_msg = str(e)
+            if "expired" in error_msg.lower():
+                raise HTTPException(status_code=401, detail="Refresh token has expired")
+            raise HTTPException(status_code=400, detail=error_msg)
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error refreshing token: {e!s}")
+            raise HTTPException(status_code=500, detail="Token refresh failed")
+
+    async def verify_token(self, token: str) -> dict:
+        """Verify and decode access token"""
+        try:
+            # Check if token is blacklisted
+            if self.redis_client.get_value(REDIS_BLACKLISTED_TOKEN + token):
+                raise HTTPException(status_code=401, detail="Token has been revoked")
+            
+            # Decode and verify token
+            payload = self.token_client.decode_token(token, is_refresh=False)
+            
+            # Optionally verify user still exists
+            user_aggregate = await self.user_service.get_user_by_id(payload["user_id"])
+            if not user_aggregate or not user_aggregate.user:
+                raise HTTPException(status_code=401, detail="User not found")
+            
+            return payload
+        except ValueError as e:
+            error_msg = str(e)
+            if "expired" in error_msg.lower():
+                raise HTTPException(status_code=401, detail="Access token has expired")
+            raise HTTPException(status_code=401, detail=error_msg)
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(f"Error verifying token: {e!s}")
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+    async def logout(self, access_token: str, refresh_token: str = None) -> None:
+        """Logout user by blacklisting tokens"""
+        try:
+            # Decode access token to get expiry time
+            try:
+                payload = self.token_client.decode_token(access_token, is_refresh=False)
+                # Calculate remaining time until token expires
+                exp = payload.get("exp")
+                if exp:
+                    remaining_seconds = max(0, exp - int(datetime.utcnow().timestamp()))
+                    if remaining_seconds > 0:
+                        # Blacklist access token until it expires
+                        self.redis_client.set_value(
+                            REDIS_BLACKLISTED_TOKEN + access_token,
+                            "true",
+                            expiry=remaining_seconds
+                        )
+            except (ValueError, HTTPException):
+                # Token already expired or invalid, but we still want to blacklist it
+                pass
+            
+            # Blacklist refresh token if provided
+            if refresh_token:
+                try:
+                    refresh_payload = self.token_client.decode_token(refresh_token, is_refresh=True)
+                    exp = refresh_payload.get("exp")
+                    if exp:
+                        remaining_seconds = max(0, exp - int(datetime.utcnow().timestamp()))
+                        if remaining_seconds > 0:
+                            self.redis_client.set_value(
+                                REDIS_BLACKLISTED_TOKEN + refresh_token,
+                                "true",
+                                expiry=remaining_seconds
+                            )
+                except (ValueError, HTTPException):
+                    pass
+            
+            self.logger.info("User logged out successfully")
+        except Exception as e:
+            self.logger.error(f"Error during logout: {e!s}")
+            # Don't raise exception, logout should generally succeed
         
     async def register_with_google(self, google_id: str, name: str, email: str, image_url: str) -> dict[str, str]:
         """Register or Login user with Google"""

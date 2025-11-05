@@ -118,8 +118,15 @@ class AuthHandler:
             self.logger.error(f"Error refreshing token: {e!s}")
             raise HTTPException(status_code=500, detail="Token refresh failed")
 
-    async def logout(self) -> dict[str, str]:
-        return {"message": "Logged out successfully"}
+    async def logout(self, access_token: str, refresh_token: str = None) -> dict[str, str]:
+        """Logout user by blacklisting tokens"""
+        try:
+            await self.auth_service.logout(access_token, refresh_token)
+            return {"message": "Logged out successfully"}
+        except Exception as e:
+            self.logger.error(f"Error during logout: {e!s}")
+            # Logout should generally succeed even if there's an error
+            return {"message": "Logged out successfully"}
 
     async def request_password_reset(self, reset_data: PasswordResetRequestDTO):
         try:

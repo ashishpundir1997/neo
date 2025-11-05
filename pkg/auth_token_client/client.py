@@ -14,9 +14,11 @@ class TokenPayload:
 
 
 class TokenClient:
-    def __init__(self, secret_key: str, refresh_secret_key: str):
+    def __init__(self, secret_key: str, refresh_secret_key: str, leeway_seconds: int = 10):
         self.secret_key = secret_key
         self.refresh_secret_key = refresh_secret_key
+        # Allow small clock skew when decoding tokens
+        self.leeway_seconds = leeway_seconds
 
     def create_tokens(self, payload: TokenPayload) -> dict[str, str]:
         """Create access and refresh tokens"""
@@ -49,7 +51,12 @@ class TokenClient:
         """Decode and verify a token"""
         try:
             secret = self.refresh_secret_key if is_refresh else self.secret_key
-            return jwt.decode(token, secret, algorithms=["HS256"])
+            return jwt.decode(
+                token,
+                secret,
+                algorithms=["HS256"],
+                leeway=self.leeway_seconds,
+            )
         except jwt.ExpiredSignatureError:
             raise ValueError("Token has expired")
         except jwt.InvalidTokenError:

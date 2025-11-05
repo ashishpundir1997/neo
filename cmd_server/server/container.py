@@ -77,6 +77,7 @@ class Container(containers.DeclarativeContainer):
         TokenClient,
         secret_key=config.jwt_auth.super_secret_key,
         refresh_secret_key=config.jwt_auth.refresh_secret_key,
+        leeway_seconds=10,
     )
 
     # Email config

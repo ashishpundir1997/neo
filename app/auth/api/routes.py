@@ -63,8 +63,28 @@ async def refresh_token(
 
 
 @auth_router.post("/logout")
-async def logout(response: Response, auth_handler: AuthHandler = Depends(get_auth_handler)):
-    return await auth_handler.logout()
+async def logout(
+    request: Request,
+    response: Response,
+    auth_handler: AuthHandler = Depends(get_auth_handler)
+):
+    """Logout user by blacklisting tokens"""
+    # Access token is required
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=400, detail="Authorization header with Bearer token is required")
+
+    access_token = auth_header.split(" ")[1]
+
+    # Optional refresh token from request body
+    refresh_token = None
+    try:
+        body = await request.json()
+        refresh_token = body.get("refresh_token")
+    except Exception:
+        pass
+
+    return await auth_handler.logout(access_token, refresh_token)
 
 
 @auth_router.post("/password-reset-request")
@@ -90,18 +110,10 @@ async def verify_email(
 
 @auth_router.get("/google/callback")
 async def google_callback(request: Request, auth_handler: AuthHandler = Depends(get_auth_handler)):
+    """Handle Google OAuth callback"""
     code = request.query_params.get("code")
     if not code:
         raise HTTPException(status_code=400, detail="No code received from Google")
     
-    tokens = await auth_handler.handle_google_callback(code)
-    return tokens
-
-@auth_router.get("/google/callback")
-async def google_callback(request: Request, auth_handler: AuthHandler = Depends(get_auth_handler)):
-    code = request.query_params.get("code")
-    if not code:
-        raise HTTPException(status_code=400, detail="No code received from Google")
-
     tokens = await auth_handler.handle_google_callback(code)
     return tokens
